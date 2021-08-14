@@ -5,11 +5,14 @@
 using std::string;
 
 string Format::ElapsedTime(long seconds) {
-    long h = seconds / 3600;
-    seconds = seconds % 3600;
-    long m = seconds / 60;
-    seconds = seconds % 60;
-    long s = seconds;
 
-    return std::to_string(h) + ": " +  std::to_string(m) + ": " + std::to_string(s);
+  string h = std::to_string(seconds / 3600);
+  string m = std::to_string((seconds % 3600) / 60);
+  string s = std::to_string(seconds % 60);
+
+  string hh = std::string(2 - h.length(), '0') + h;
+  string mm = std::string(2 - m.length(), '0') + m;
+  string ss = std::string(2 - s.length(), '0') + s;
+
+  return hh + ':' + mm + ":" + ss;
 }

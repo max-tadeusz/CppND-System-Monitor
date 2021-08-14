@@ -33,13 +33,13 @@ string LinuxParser::OperatingSystem() {
 }
 
 string LinuxParser::Kernel() {
-  string os, kernel;
+  string os, version, kernel;
   string line;
   std::ifstream stream(kProcDirectory + kVersionFilename);
   if (stream.is_open()) {
     std::getline(stream, line);
     std::istringstream linestream(line);
-    linestream >> os >> kernel;
+    linestream >> os >> version >> kernel;
   }
   return kernel;
 }
@@ -62,7 +62,7 @@ vector<int> LinuxParser::Pids() {
 }
 
 float LinuxParser::MemoryUtilization() { 
-  float MemTotal, MemFree;
+  float mem_total, mem_free;
   string key, value, kb, line;
   std::ifstream stream(kProcDirectory + kMeminfoFilename);
   if (stream.is_open()) {
@@ -70,12 +70,12 @@ float LinuxParser::MemoryUtilization() {
       	std::replace(line.begin(), line.end(), ':', ' ');
   		std::istringstream linestream(line);
     	while (linestream >> key >> value >> kb) {
-        	if (key == "MemTotal") { MemTotal = std::stof(value);}
-            if (key == "MemFree") { MemFree = std::stof(value);}
+        	if (key == "MemTotal") { mem_total = std::stof(value);}
+            if (key == "MemFree") { mem_free = std::stof(value);}
         	}
     	}
   }
-  return (MemTotal - MemFree)/MemTotal;
+  return (mem_total - mem_free)/mem_total;
 }
 
 long LinuxParser::UpTime() { 
@@ -89,14 +89,6 @@ long LinuxParser::UpTime() {
   }
   return std::stol(uptime);
 }
-
-long LinuxParser::Jiffies() { return 0; }
-
-long LinuxParser::ActiveJiffies(int) { return 0; }
-
-long LinuxParser::ActiveJiffies() { return 0; }
-
-long LinuxParser::IdleJiffies() { return 0; }
 
 vector<string> LinuxParser::CpuUtilization() { 
   string line;
@@ -136,12 +128,11 @@ float LinuxParser::CpuUtilization(int pid) {
     }
     int totalProcessTicks = stoi(columns[13]) + stoi(columns[14]) + stoi(columns[15]) + stoi(columns[16]);
     float totalProcessTime = totalProcessTicks / (float)sysconf(_SC_CLK_TCK);
-    long totalSeconds = UpTime() - UpTime(pid);
+    long totalSeconds = UpTime(pid);
     util = totalSeconds != 0 ? (totalProcessTime/(float)totalSeconds) : 0.0;
   }
   return util;
 }
-
 
 int LinuxParser::TotalProcesses() { 
   string key;
@@ -194,13 +185,19 @@ string LinuxParser::Command(int pid) {
 string LinuxParser::Ram(int pid) { 
   string line;
   string key;
-  long ram;
+  long ram = -1;
   std::ifstream stream(kProcDirectory + to_string(pid) + kStatusFilename);
   if (stream.is_open()) {
     while (std::getline(stream, line)) {
       std::istringstream linestream(line);
       linestream >> key;
-      if (key == "VmSize:") {
+      /*       
+      replacing VmSize regarding to previous review 
+      
+      Whereas when you use VmRSS then it gives the exact physical memory being used as a part of Physical RAM. So it is recommended to replace the string VmSize with VmRSS as people who will be looking at your 		GitHub might not have any idea of Virtual memory and so they will think you have done something wrong!  
+      PS - Moreover when you replace then please put a comment stating that you have used VmRSS instead of 	   VmSize because it might happen that another reviewer is following the Udacity guideline and so 		  he/she might make it a required change but once you put the comment with the link to the resources then he 	will surely understand that!
+      */
+      if (key == "VmRSS:") {
         linestream >> ram;
         break;
       }
@@ -228,24 +225,22 @@ string LinuxParser::Uid(int pid) {
   return uid;  
 }
 
-// TODO: Read and return the user associated with a process
-// REMOVE: [[maybe_unused]] once you define the function
 string LinuxParser::User(int pid) { 
-  string usr, password, uid;
-  string line;
+  string uid = Uid(pid);
+  string id, x, line;
+  string usr = "DEFAULT";
   std::ifstream stream(kPasswordPath);
   if (stream.is_open()) {
     while (std::getline(stream, line)) {
       std::replace(line.begin(), line.end(), ':', ' ');
       std::istringstream linestream(line);
-      while (linestream >> usr >> password >> uid) {
-        if (uid == LinuxParser::Uid(pid)){
-          break;;
-        }
+      linestream >> usr >> x >> id;
+      if (id == uid) {
+        break;
       }
     }
   }
-  return usr; 
+  return usr;
 }
 
 long LinuxParser::UpTime(int pid) { 
